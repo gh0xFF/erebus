@@ -7,6 +7,8 @@ extern void read_message_test(void);
 extern void write_message_test(void);
 extern void chacha20_test(void);
 extern void garbage_generator_test(void);
+extern void init_stroage_test(void);
+extern void sqlite3_flow_test(void);
 
 int main(void) {
     fprintf(stdout, "RUN  adler32....................................................................\n");
@@ -28,9 +30,9 @@ int main(void) {
     fprintf(stdout, "................................................................................\n");
     write_message_test();
     fprintf(stdout, "................................................................................\n");
-
     fprintf(stdout, "RUN  instance.................................................................OK\n");
 
-   
-
+    fprintf(stdout, "RUN  sqlite3_flow...............................................................\n");
+    sqlite3_flow_test();
+    fprintf(stdout, "RUN  sqlite3_flow.............................................................OK\n");
 }

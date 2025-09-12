@@ -19,18 +19,21 @@ WARNING_FLAGS = -Wall -Wextra -Werror \
     -Winline -Wvla -Wswitch-default -Wswitch-enum \
     -Wunused-macros -Wunsafe-loop-optimizations -Wundef \
     -fstack-protector-strong -fPIE -fstack-clash-protection \
+	-fno-strict-aliasing \
+	-fno-builtin-memcpy -fno-builtin-memset -fno-builtin-strcpy \
     -fcf-protection=check -fanalyzer \
     -O2 -D_GLIBCXX_ASSERTIONS \
+	-fno-common \
 	-fsanitize=leak \
     -fsanitize-address-use-after-scope
-	-fsanitize=float-divide-by-zero 
+	-fsanitize=float-divide-by-zero, unreachable 
 
 HARDENING_FLAGS = -D_FORTIFY_SOURCE=3 -fstack-protector-strong -fPIE -fPIC 
 DEBUG_FLAGS = -g3 -O0 -DDEBUG
 RELEASE_FLAGS = -O2 -g0 -flto -ffunction-sections -fdata-sections -W
 
 CFLAGS = $(STD_FLAGS) $(WARNING_FLAGS) $(HARDENING_FLAGS)
-LDFLAGS = -pie -W
+LDFLAGS = -pie -W -l sqlite3
 
 TARGET = erebus
 SRC_DIR = src
