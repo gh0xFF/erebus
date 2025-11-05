@@ -1,6 +1,21 @@
 
 # Change Log
 
+## [0.0.3] - 2025-11-05
+ 
+### Added
+  #### introduced key storage
+### Changed
+  introduced interactive mode which must be extended
+### Fixed
+  fixed readme  
+
+### TODO
+  #### extend actions interactive mode
+  #### implement sqlite client
+  #### increase test coverage
+  #### add encryption for storage
+
 ## [0.0.2] - 2025-09-12
  
 ### Added
