@@ -37,10 +37,16 @@ int main(int argc, char *argv[]) {
     
     uint16_t offset = 0;
     uint8_t option = 0;
+    uint8_t mode = CLI_MODE;
     int opt;
 
-    while ((opt = getopt(argc, argv, "t:m:o:de")) != -1) {
+    // ./erebus -t ./tests/data/instance_template.txt -m ./tests/data/encrypted_instance_msg.txt -o 1 -d
+    while ((opt = getopt(argc, argv, "t:m:o:dei")) != -1) {
         switch (opt) {
+            case 'i':
+                printf("[%s]", "i");
+                mode = INTERACTIVE_MODE;
+                break;
             case 't':
                 strcpy(template, optarg);
                 break;
@@ -63,24 +69,27 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if (template == NULL || sizeof(template) == 0 || msg == NULL || sizeof(msg) == 0) {
-        print_help();
-        return 1;
-    }
+    if (mode == CLI_MODE) {
+        if (template == NULL || sizeof(template) == 0 || msg == NULL || sizeof(msg) == 0) {
+            print_help();
+            return 1;
+        }
 
-    if (option != OPTION_DECRYPT && option != OPTION_ENCRYPT) {
-        fprintf(stderr, "ivalid option value\n");
-        return 1;
-    }
+        if (option != OPTION_DECRYPT && option != OPTION_ENCRYPT) {
+            fprintf(stderr, "ivalid option value\n");
+            return 1;
+        }
 
-    #ifdef PARANOIC
-    if (offset >= 16) {
-        fprintf(stderr, "paranoic mode in action, you are already used same key 16 times. Create new template and send it\n");
-        return 1;
+        #ifdef PARANOIC
+        if (offset >= 16) {
+            fprintf(stderr, "paranoic mode in action, you are already used same key 16 times. Create new template and send it\n");
+            return 1;
+        }
+        #endif
     }
-    #endif
+    
 
-    status = run_app(template, msg, offset, option);
+    status = run_app(template, msg, offset, option, mode);
     free(msg);
     return 0;
 }
@@ -88,10 +97,11 @@ int main(int argc, char *argv[]) {
 void print_help(void) {
     fprintf(
         stdout,
-        "version 0.0.1\n\n"
+        "version 0.0.3\n\n"
         "\033[1;31mNO WARRANTIES UNTIL VERSION 0.1.0\033[0m\n\n"
         "usage: erebus -t <template> -m <message> -o <offset> -d|e\n"
         "example: erebus -t template.txt -m msg.txt -o 1 -d\n\n"
+        "-i to run app in interactive mode\n"
         "-t to choose path to template\n"
         "-m to choose path to message\n"
         "-o to set offset for generator\n"
