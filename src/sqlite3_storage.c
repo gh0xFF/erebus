@@ -23,6 +23,7 @@ int insert_dialog(sqlite3 *db, const char* uname, const char* key);
 int ping_storage(sqlite3 *db);
 int init_storage(sqlite3 **db);
 int create_dialog(storage *s, const dialog *d);
+int remove_dialog(sqlite3 *db, const char *uname);
 int cb(void *data, int cnt, char **cols, char **nms);
 
 
@@ -191,6 +192,28 @@ int get_dialogs(sqlite3 *db, storage *st) {
         return -1;
     }
 
+    return 0;
+}
+
+int remove_dialog(sqlite3 *db, const char * uname) {
+    // if (!st) return -1;
+
+    sqlite3_stmt *stmt;
+    const char *sql = "DELETE FROM dialogs where username = ?";
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) != SQLITE_OK) {
+        fprintf(stderr, "error while removing dialog: %s\n", sqlite3_errmsg(db));
+        return -1;
+    }
+
+    sqlite3_bind_text(stmt, 1, uname, -1, SQLITE_STATIC);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE) {
+        fprintf(stderr, "error while exec: %s\n", sqlite3_errmsg(db));
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
     return 0;
 }
 
