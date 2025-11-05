@@ -21,6 +21,7 @@ int get_dialogs(sqlite3 *db, storage *st);
 int update_dialog(sqlite3 *db, int offset, const char* uname);
 int insert_dialog(sqlite3 *db, const char* uname, const char* key);
 int create_dialog(storage *s, const dialog *d);
+int remove_dialog(sqlite3 *db, const char *uname);
 int ping_storage(sqlite3 *db);
 int init_storage(sqlite3 **db);
 

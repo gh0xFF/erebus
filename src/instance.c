@@ -3,6 +3,9 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <ctype.h>
+#include <sqlite3.h>
+#include "sqlite3_storage.h"
 #include "template.h"
 #include "chacha20.h"
 #include "adler32.h"
@@ -10,18 +13,66 @@
 #define OPTION_DECRYPT 1
 #define OPTION_ENCRYPT 2
 
+#define CLI_MODE 0
+#define INTERACTIVE_MODE 1
+
 #define MAX_FILE_SIZE 4096
 #define MAX_KEY_LENGTH 256
 
-int run_app( char *template,  char *msg,  uint16_t offset,  uint8_t option);
+#define CLEAR_STDOUT "\\e[3J" //"\033[2J"
+
+int run_app( char *template,  char *msg,  uint16_t offset,  uint8_t option, uint8_t mode);
 int extract_key_from_templatefile(const char* template, char* key);
 int read_message_from_file(const char *msg, char *msg_data);
 int writeout_message(char *fname, char *msg);
 void garbage_generator(char *msg, uint16_t len);
 void add_garbage_to_msg(char *msg);
 char* transform_filename(const char* input);
+int run_interactive_mode(sqlite3 *db);
+void chacha20_generator(char* message_buffer, char* key, uint16_t offset);
+int run_cli_mode(sqlite3 *db, char* template, char* msg, uint16_t offset, uint8_t option);
 
-int run_app(char* template,  char* msg,  uint16_t offset,  uint8_t option) {
+int run_app(
+    char* template,  
+    char* msg,  
+    uint16_t offset,  
+    uint8_t option,
+    uint8_t mode
+) {
+
+    sqlite3 *db = NULL;
+    if (init_storage(&db) != 0) {
+        fprintf(stderr, "can't open storage\n");
+        return -1;
+    }
+
+    if (ping_storage(db) != 0) {
+        fprintf(stderr, "error while ping storage\n");
+        return -1;
+    }
+    
+    int status = 0;
+    switch (mode) {
+        case CLI_MODE:
+            status = run_cli_mode(db, template, msg, offset, option);
+            break;
+        case INTERACTIVE_MODE:
+            status = run_interactive_mode(db);
+            break;
+        default:
+            fprintf(stderr, "unsupported mode\n");
+            status = -1;
+    }
+
+    return status;
+}
+int run_cli_mode(
+    sqlite3 *db __attribute__((unused)),
+    char* template,  
+    char* msg,  
+    uint16_t offset,  
+    uint8_t option
+) {
     char *key = (char*)calloc(MAX_KEY_LENGTH, 1);
     if(key == NULL) {
         return -1;
@@ -46,11 +97,120 @@ int run_app(char* template,  char* msg,  uint16_t offset,  uint8_t option) {
         return -1;
     }
 
-    if (option == OPTION_DECRYPT) {/* for now do nothing; todo add extractors to print message without garbage */} 
+    if (option == OPTION_DECRYPT) {
+        /* for now do nothing; todo add extractors to print message without garbage */
+    } 
+    
     if (option == OPTION_ENCRYPT) {
         garbage_generator(message_buffer, (uint16_t)strlen(message_buffer));
     }
 
+    chacha20_generator(message_buffer, key, offset);
+
+    if (writeout_message(msg, message_buffer) == -1) {
+        fprintf(stderr, "error while writing message file to disk\n");
+        return -1;
+    }
+
+    free(key);
+    free(message_buffer);
+    return 0;
+}
+
+int run_interactive_mode(sqlite3 *db) {
+    /*
+       There's an inconsistent state issue; according to the mutated fields in the database, they don't correspond to the memory access.
+        We need to synchronize them.
+        One option is to rework the database access methods ourselves.
+        The best option is to monitor mutagen calls from the upper layers and update the memory in this case.
+    */
+    int status = 0;
+    char *command_buffer = NULL;
+    size_t size = 0;
+    ssize_t len = 0;
+    storage *st = (storage*)calloc(1, sizeof(storage));
+
+    if (get_dialogs(db, st) != 0) {
+        goto __exit;
+    }
+
+    while (1) {
+        fprintf(stdout, 
+            "%s\n"
+            "press 'q' to exit or choose dialog for option:\n"
+            "press 'a' to add new dialog:\n"
+            "press 's' to show dialogs, you have %d:\n",
+            CLEAR_STDOUT, st->count
+        );
+       
+        if ((len = getline(&command_buffer, &size, stdin)) == -1) {
+            status = -1;
+            goto __exit;
+        }
+    
+        command_buffer[strcspn(command_buffer, "\n")] = '\0';
+
+        printf("[DEBUG] pressed [%s]\n", command_buffer);
+
+    
+        if (strcmp(command_buffer, "q") == 0) {
+            status = 0;
+            goto __exit;
+        }
+
+        if (strcmp(command_buffer, "a") == 0) {
+            fprintf(stdout, "enter usrsname: ");
+
+            char *username = NULL;
+            if ((len = getline(&username, &size, stdin)) == -1) {
+                fprintf(stderr, "input error\n");
+                status = -1;
+                goto __exit;
+            }
+
+            if (size == 0) {
+                fprintf(stdout, "empty arg\n");
+                break;
+            }
+
+            fprintf(stdout, "enter key: ");
+
+            char *key = NULL;
+            if ((len = getline(&key, &size, stdin)) == -1) {
+                fprintf(stderr, "input error\n");
+                status = -1;
+                goto __exit;
+            }
+
+            if (size == 0) {
+                fprintf(stdout, "empty arg\n");
+                break;
+            }
+
+            if (insert_dialog(db, username, key) == -1) {
+                fprintf(stderr, "error while inserting dialog\n");
+                status = -1;
+                goto __exit;
+            }
+        }
+
+        if (strcmp(command_buffer, "s") == 0) {
+            if (st->count == 0) {
+                fprintf(stdout, "no available dialogs");
+            } else {
+                for(int i = 0; i < st->count; i++) {
+                    fprintf(stdout, "[%d] %s\n", i, st->data[i].username);
+                }
+            }
+        }
+    }
+
+__exit:
+    free(command_buffer);
+    return status;
+}
+
+void chacha20_generator(char* message_buffer, char* key, uint16_t offset) {
     uint8_t chacha_key[32];
     memset(chacha_key, 0, 32);
 
@@ -63,15 +223,6 @@ int run_app(char* template,  char* msg,  uint16_t offset,  uint8_t option) {
     struct chacha20_context ctx;
     chacha20_init_context(&ctx, chacha_key, nonce, offset);
     chacha20_xor(&ctx, (uint8_t*)message_buffer, sizeof(message_buffer));
-
-    if (writeout_message(msg, message_buffer) == -1) {
-        fprintf(stderr, "error while writing message file to disk\n");
-        return -1;
-    }
-
-    free(key);
-    free(message_buffer);
-    return 0;
 }
 
 char* transform_filename(const char* input) {

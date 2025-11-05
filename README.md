@@ -10,13 +10,13 @@
  `------'`--' '--' `------'`------'   `-----'     `-----'  
 ```
 
-Created in totalitarian Belarus. During the times of total control of communication with the quarantine of the world, we were participants of our basic rights, one of which was freedom of correspondence. And the goal of this application is to return this right.
+Created in totalitarian Belarus. During a time of total control over global communications, we lost our basic right to freedom of communication. And the goal of this app is to regain that right.
 
-The entire Internet uses the Diffie-Hellman key exchange protocol, which has enormous power in video with the possibility of attack. My idea allows you to avoid this vulnerability.
+The entire internet uses the Diffie-Hellman key exchange protocol for key exchange, but it's vulnerable to attack. My idea allows us to bypass this vulnerability.
 
-The idea of ​​the application is based on the work of Claude Chennno about mathematical communication. In it, he proved the absolute cryptographic resistance of the Vernam cipher, which I use in the application.
+The app's concept is based on Claude Shannon's work on the mathematical theory of communication. In it, he proved the absolute cryptographic strength of the Vernam cipher, which I use in the app.
 
-Those who are already familiar with this activity know that the key can only be used once. I partially managed to solve this problem with some restrictions.
+Those familiar with this work know that a key can only be used once. I partially solved this problem by imposing some restrictions.
 
 1) create a file with questions, which is described in [example](./examples/template.txt)
 2) we send to the interlocutor through an unreliable channel
