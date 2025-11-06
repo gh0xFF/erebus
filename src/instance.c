@@ -220,7 +220,7 @@ void chacha20_generator(char* message_buffer, char* key, uint16_t offset) {
     uint8_t *casted_key = (uint8_t*)key;
     memcpy(&chacha_key, casted_key, 32);
 
-    struct chacha20_context ctx;
+    chacha20_ctx ctx;
     chacha20_init_context(&ctx, chacha_key, nonce, offset);
     chacha20_xor(&ctx, (uint8_t*)message_buffer, sizeof(message_buffer));
 }

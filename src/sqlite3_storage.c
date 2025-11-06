@@ -3,18 +3,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-
-typedef struct dialog {
-    uint16_t relative_id;
-    uint16_t offset;
-    char username[256];
-    char key[256];
-} dialog;
-
-typedef struct storage {
-    uint16_t count;
-    dialog *data;
-} storage;
+#include "sqlite3_storage.h"
 
 int close_storage(sqlite3 *db);
 int get_dialogs(sqlite3 *db, storage *st);
