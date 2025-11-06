@@ -4,9 +4,9 @@
 #define MAX_FILE_SIZE 4096
 #define MAX_KEY_LENGTH 256
 
-int extract_key_from_template(char *template, char *key, int *key_size);
+int extract_key_from_template(const char *template, char *key, int *key_size);
 
-int extract_key_from_template(char *template, char *key, int *key_size) {
+int extract_key_from_template(const char *template, char *key, int *key_size) {
     int8_t opened_bracket = 0;
     int8_t can_collect = 0;
     

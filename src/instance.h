@@ -11,10 +11,10 @@
 
 int run_app(
     char *template,
-    char *msg,  
-    uint16_t offset,  
-    uint8_t option,
-    uint8_t mode
+    const char *msg,  
+    const uint16_t offset,  
+    const uint8_t option,
+    const uint8_t mode
 );
 
 #endif

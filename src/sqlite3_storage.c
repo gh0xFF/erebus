@@ -3,18 +3,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-
-typedef struct dialog {
-    uint16_t relative_id;
-    uint16_t offset;
-    char username[256];
-    char key[256];
-} dialog;
-
-typedef struct storage {
-    uint16_t count;
-    dialog *data;
-} storage;
+#include "sqlite3_storage.h"
 
 int close_storage(sqlite3 *db);
 int get_dialogs(sqlite3 *db, storage *st);
@@ -67,10 +56,6 @@ int ping_storage(sqlite3 *db) {
         fprintf(stderr, "Database handle is NULL\n");
         return -1;
     }
-
-    // printf("SQLite memory used: %lld bytes\n", sqlite3_memory_used());
-    // printf("SQLite memory highwater: %lld bytes\n", sqlite3_memory_highwater(1));
-
 
     sqlite3_stmt *stmt;
     const char *sql = "SELECT 1";
@@ -149,7 +134,7 @@ int create_dialog(storage *s, const dialog *d) {
 
 int cb(
     void *data,
-    int cnt __attribute__((unused)), 
+    int cnt, 
     char **cols, 
     char **nms __attribute__((unused))
 ) {
@@ -196,8 +181,6 @@ int get_dialogs(sqlite3 *db, storage *st) {
 }
 
 int remove_dialog(sqlite3 *db, const char * uname) {
-    // if (!st) return -1;
-
     sqlite3_stmt *stmt;
     const char *sql = "DELETE FROM dialogs where username = ?";
 

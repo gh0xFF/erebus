@@ -22,6 +22,20 @@
     #include <arm_neon.h>
 #endif
 
+void chacha20_generator(char* message_buffer, char* key, uint16_t offset) {
+    uint8_t chacha_key[32];
+    memset(chacha_key, 0, 32);
+
+    uint8_t nonce[12];
+    memset(nonce, 0, 12);
+
+    uint8_t *casted_key = (uint8_t*)key;
+    memcpy(&chacha_key, casted_key, 32);
+
+    chacha20_ctx ctx;
+    chacha20_init_context(&ctx, chacha_key, nonce, offset);
+    chacha20_xor(&ctx, (uint8_t*)message_buffer, sizeof(message_buffer));
+}
 
 static inline uint32_t rotl32(uint32_t x, int n) {
 	return (x << n) | (x >> (32 - n));
@@ -36,7 +50,7 @@ static inline uint32_t pack4(const uint8_t *a) {
 	return res;
 }
 
-static void chacha20_init_block(struct chacha20_context *ctx, uint8_t key[], uint8_t nonce[]) {
+static void chacha20_init_block(chacha20_ctx *ctx, uint8_t key[], uint8_t nonce[]) {
 	memcpy(ctx->key, key, sizeof(ctx->key));
 	memcpy(ctx->nonce, nonce, sizeof(ctx->nonce));
 
@@ -62,12 +76,12 @@ static void chacha20_init_block(struct chacha20_context *ctx, uint8_t key[], uin
 	memcpy(ctx->nonce, nonce, sizeof(ctx->nonce));
 }
 
-static void chacha20_block_set_counter(struct chacha20_context *ctx, uint64_t counter) {
+static void chacha20_block_set_counter(chacha20_ctx *ctx, uint64_t counter) {
 	ctx->state[12] = (uint32_t)counter;
 	ctx->state[13] = pack4(ctx->nonce + 0 * 4) + (uint32_t)(counter >> 32);
 }
 
-static void chacha20_block_next(struct chacha20_context *ctx) {
+static void chacha20_block_next(chacha20_ctx *ctx) {
 	// This is where the crazy voodoo magic happens.
 	// Mix the bytes a lot and hope that nobody finds out how to undo it.
 	for (int i = 0; i < 16; i++) ctx->keystream32[i] = ctx->state[i];
@@ -105,8 +119,8 @@ static void chacha20_block_next(struct chacha20_context *ctx) {
 	}
 }
 
-void chacha20_init_context(struct chacha20_context *ctx, uint8_t key[], uint8_t nonce[], uint64_t counter) {
-	memset(ctx, 0, sizeof(struct chacha20_context));
+void chacha20_init_context(chacha20_ctx *ctx, uint8_t key[], uint8_t nonce[], uint64_t counter) {
+	memset(ctx, 0, sizeof(chacha20_ctx));
 
 	chacha20_init_block(ctx, key, nonce);
 	chacha20_block_set_counter(ctx, counter);
@@ -115,7 +129,7 @@ void chacha20_init_context(struct chacha20_context *ctx, uint8_t key[], uint8_t 
 	ctx->position = 64;
 }
 
-void chacha20_xor(struct chacha20_context *ctx, uint8_t *bytes, size_t n_bytes) {
+void chacha20_xor(chacha20_ctx *ctx, uint8_t *bytes, size_t n_bytes) {
     #if CHACHA20_SIMD_AVX2
     
 	uint8_t *keystream8 = (uint8_t*)ctx->keystream32;

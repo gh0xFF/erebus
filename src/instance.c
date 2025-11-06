@@ -6,40 +6,33 @@
 #include <ctype.h>
 #include <sqlite3.h>
 #include "sqlite3_storage.h"
+#include "instance.h"
 #include "template.h"
 #include "chacha20.h"
 #include "adler32.h"
 
-#define OPTION_DECRYPT 1
-#define OPTION_ENCRYPT 2
-
-#define CLI_MODE 0
-#define INTERACTIVE_MODE 1
-
 #define MAX_FILE_SIZE 4096
 #define MAX_KEY_LENGTH 256
 
-#define CLEAR_STDOUT "\\e[3J" //"\033[2J"
+#define CLEAR_STDOUT "\\e[3J"
 
-int run_app( char *template,  char *msg,  uint16_t offset,  uint8_t option, uint8_t mode);
+int run_app(char *template, const char *msg, const uint16_t offset, const uint8_t option, const uint8_t mode);
 int extract_key_from_templatefile(const char* template, char* key);
 int read_message_from_file(const char *msg, char *msg_data);
-int writeout_message(char *fname, char *msg);
-void garbage_generator(char *msg, uint16_t len);
+int writeout_message(const char *fname, const char *msg);
+void garbage_generator(char *msg, const uint16_t len);
 void add_garbage_to_msg(char *msg);
 char* transform_filename(const char* input);
 int run_interactive_mode(sqlite3 *db);
-void chacha20_generator(char* message_buffer, char* key, uint16_t offset);
-int run_cli_mode(sqlite3 *db, char* template, char* msg, uint16_t offset, uint8_t option);
+int run_cli_mode(sqlite3 *db, const char* template, const char* msg, const uint16_t offset, const uint8_t option);
 
 int run_app(
     char* template,  
-    char* msg,  
-    uint16_t offset,  
-    uint8_t option,
-    uint8_t mode
+    const char* msg,  
+    const uint16_t offset,  
+    const uint8_t option,
+    const uint8_t mode
 ) {
-
     sqlite3 *db = NULL;
     if (init_storage(&db) != 0) {
         fprintf(stderr, "can't open storage\n");
@@ -68,10 +61,10 @@ int run_app(
 }
 int run_cli_mode(
     sqlite3 *db __attribute__((unused)),
-    char* template,  
-    char* msg,  
-    uint16_t offset,  
-    uint8_t option
+    const char* template,  
+    const char* msg,  
+    const uint16_t offset,  
+    const uint8_t option
 ) {
     char *key = (char*)calloc(MAX_KEY_LENGTH, 1);
     if(key == NULL) {
@@ -150,9 +143,6 @@ int run_interactive_mode(sqlite3 *db) {
     
         command_buffer[strcspn(command_buffer, "\n")] = '\0';
 
-        printf("[DEBUG] pressed [%s]\n", command_buffer);
-
-    
         if (strcmp(command_buffer, "q") == 0) {
             status = 0;
             goto __exit;
@@ -210,20 +200,6 @@ __exit:
     return status;
 }
 
-void chacha20_generator(char* message_buffer, char* key, uint16_t offset) {
-    uint8_t chacha_key[32];
-    memset(chacha_key, 0, 32);
-
-    uint8_t nonce[12];
-    memset(nonce, 0, 12);
-
-    uint8_t *casted_key = (uint8_t*)key;
-    memcpy(&chacha_key, casted_key, 32);
-
-    struct chacha20_context ctx;
-    chacha20_init_context(&ctx, chacha_key, nonce, offset);
-    chacha20_xor(&ctx, (uint8_t*)message_buffer, sizeof(message_buffer));
-}
 
 char* transform_filename(const char* input) {
     const char* last_slash = strrchr(input, '/');
@@ -281,7 +257,7 @@ char* transform_filename(const char* input) {
     
     return result;
 }
-int writeout_message(char *path, char *msg) {
+int writeout_message(const char *path, const char *msg) {
     char *fname = transform_filename(path);
     if (fname == NULL) {
         return -1;
@@ -416,7 +392,7 @@ int extract_key_from_templatefile(const char* template, char* key) {
     return 0;
 }
 
-void garbage_generator(char *msg, uint16_t len) {
+void garbage_generator(char *msg, const uint16_t len) {
     char *new_msg = (char *)calloc(MAX_FILE_SIZE, 1);
     if (new_msg == NULL) {
         return;

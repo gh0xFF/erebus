@@ -61,7 +61,7 @@ inline void xor(uint64_t c, uint8_t *payload) {
     uint8_t chacha_key[32] = "12345678901234567890123456789012";
     uint8_t nonce[12] = "0123456789ab";
 
-    struct chacha20_context ctx;
+    chacha20_ctx ctx;
     chacha20_init_context(&ctx, chacha_key, nonce, c);
     chacha20_xor(&ctx, payload, 4096);
 }

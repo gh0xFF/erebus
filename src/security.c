@@ -9,7 +9,6 @@ int lock_process_memory(void);
     #include <sys/resource.h>
     #include <linux/seccomp>
 #elif defined(__APPLE__)
-    // TODO
 #endif
 
 
