@@ -57,10 +57,6 @@ int ping_storage(sqlite3 *db) {
         return -1;
     }
 
-    // printf("SQLite memory used: %lld bytes\n", sqlite3_memory_used());
-    // printf("SQLite memory highwater: %lld bytes\n", sqlite3_memory_highwater(1));
-
-
     sqlite3_stmt *stmt;
     const char *sql = "SELECT 1";
     
@@ -138,7 +134,7 @@ int create_dialog(storage *s, const dialog *d) {
 
 int cb(
     void *data,
-    int cnt __attribute__((unused)), 
+    int cnt, 
     char **cols, 
     char **nms __attribute__((unused))
 ) {
@@ -185,8 +181,6 @@ int get_dialogs(sqlite3 *db, storage *st) {
 }
 
 int remove_dialog(sqlite3 *db, const char * uname) {
-    // if (!st) return -1;
-
     sqlite3_stmt *stmt;
     const char *sql = "DELETE FROM dialogs where username = ?";
 

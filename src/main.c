@@ -19,10 +19,6 @@ int main(int argc, char *argv[]) {
         // ok lets continue
     }
 
-    // print_demo();
-
-    // TODO add scanf for template in paranoic mode
-
     // 256 - usual len for filename on modern fs
     // may be a problem if we are using full filepath from root to file
     char *template = (char*)calloc(256, sizeof(char));
@@ -44,7 +40,6 @@ int main(int argc, char *argv[]) {
     while ((opt = getopt(argc, argv, "t:m:o:dei")) != -1) {
         switch (opt) {
             case 'i':
-                printf("[%s]", "i");
                 mode = INTERACTIVE_MODE;
                 break;
             case 't':
@@ -154,9 +149,5 @@ void print_demo(void) {
         "    ..        .                               ....          \n";
                                                             
 
-    fprintf(
-        stdout,
-        "%s",
-        img
-    );
+    fprintf(stdout, "%s", img);
 }

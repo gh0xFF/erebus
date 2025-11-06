@@ -6,20 +6,15 @@
 #include <ctype.h>
 #include <sqlite3.h>
 #include "sqlite3_storage.h"
+#include "instance.h"
 #include "template.h"
 #include "chacha20.h"
 #include "adler32.h"
 
-#define OPTION_DECRYPT 1
-#define OPTION_ENCRYPT 2
-
-#define CLI_MODE 0
-#define INTERACTIVE_MODE 1
-
 #define MAX_FILE_SIZE 4096
 #define MAX_KEY_LENGTH 256
 
-#define CLEAR_STDOUT "\\e[3J" //"\033[2J"
+#define CLEAR_STDOUT "\\e[3J"
 
 int run_app( char *template,  char *msg,  uint16_t offset,  uint8_t option, uint8_t mode);
 int extract_key_from_templatefile(const char* template, char* key);
@@ -39,7 +34,6 @@ int run_app(
     uint8_t option,
     uint8_t mode
 ) {
-
     sqlite3 *db = NULL;
     if (init_storage(&db) != 0) {
         fprintf(stderr, "can't open storage\n");
@@ -150,9 +144,6 @@ int run_interactive_mode(sqlite3 *db) {
     
         command_buffer[strcspn(command_buffer, "\n")] = '\0';
 
-        printf("[DEBUG] pressed [%s]\n", command_buffer);
-
-    
         if (strcmp(command_buffer, "q") == 0) {
             status = 0;
             goto __exit;
