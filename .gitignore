@@ -1,4 +1,9 @@
 ./vscode/
-./build/
+/build/*
 ./erebus
 ./unittests
+
+.DS_Store
+erebus
+unit_tests
+settings.json
