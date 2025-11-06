@@ -13,6 +13,7 @@ typedef struct chacha20_context {
 	uint8_t nonce[12];
 } chacha20_ctx;
 
+void chacha20_generator(char* message_buffer, char* key, uint16_t offset);
 void chacha20_init_context(chacha20_ctx *ctx, uint8_t key[], uint8_t nounc[], uint64_t counter);
 void chacha20_xor(chacha20_ctx *ctx, uint8_t *bytes, size_t n_bytes);
 
