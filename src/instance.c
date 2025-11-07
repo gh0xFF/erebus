@@ -16,15 +16,15 @@
 
 #define CLEAR_STDOUT "\\e[3J"
 
-int run_app(char *template, const char *msg, const uint16_t offset, const uint8_t option, const uint8_t mode);
+// int run_app(char *template, const char *msg, const uint16_t offset, const uint8_t option, const uint8_t mode);
 int extract_key_from_templatefile(const char* template, char* key);
 int read_message_from_file(const char *msg, char *msg_data);
 int writeout_message(const char *fname, const char *msg);
 void garbage_generator(char *msg, const uint16_t len);
 void add_garbage_to_msg(char *msg);
 char* transform_filename(const char* input);
-int run_interactive_mode(sqlite3 *db);
-int run_cli_mode(sqlite3 *db, const char* template, const char* msg, const uint16_t offset, const uint8_t option);
+int run_interactive_mode(storage *st);
+int run_cli_mode(storage *st, const char* template, const char* msg, const uint16_t offset, const uint8_t option);
 
 int run_app(
     char* template,  
@@ -33,34 +33,38 @@ int run_app(
     const uint8_t option,
     const uint8_t mode
 ) {
-    sqlite3 *db = NULL;
-    if (init_storage(&db) != 0) {
+    storage *st = NULL;
+    if (init_storage(st) != 0) {
         fprintf(stderr, "can't open storage\n");
         return -1;
     }
 
-    if (ping_storage(db) != 0) {
+    if (ping_storage(st) != 0) {
         fprintf(stderr, "error while ping storage\n");
         return -1;
     }
-    
+
     int status = 0;
     switch (mode) {
         case CLI_MODE:
-            status = run_cli_mode(db, template, msg, offset, option);
+            status = run_cli_mode(st, template, msg, offset, option);
             break;
         case INTERACTIVE_MODE:
-            status = run_interactive_mode(db);
+            status = run_interactive_mode(st);
             break;
         default:
             fprintf(stderr, "unsupported mode\n");
             status = -1;
     }
 
+    if (close_storage(st) == -1) {
+        status = -1;
+    }
+
     return status;
 }
 int run_cli_mode(
-    sqlite3 *db __attribute__((unused)),
+    storage *st __attribute__((unused)),
     const char* template,  
     const char* msg,  
     const uint16_t offset,  
@@ -110,7 +114,12 @@ int run_cli_mode(
     return 0;
 }
 
-int run_interactive_mode(sqlite3 *db) {
+int run_interactive_mode(storage *st) {
+    if (st == NULL) {
+        fprintf(stderr, "Error: storage is NULL\n");
+        return -1;
+    }
+
     /*
        There's an inconsistent state issue; according to the mutated fields in the database, they don't correspond to the memory access.
         We need to synchronize them.
@@ -121,9 +130,8 @@ int run_interactive_mode(sqlite3 *db) {
     char *command_buffer = NULL;
     size_t size = 0;
     ssize_t len = 0;
-    storage *st = (storage*)calloc(1, sizeof(storage));
 
-    if (get_dialogs(db, st) != 0) {
+    if (get_dialogs(st) != 0) {
         goto __exit;
     }
 
@@ -177,7 +185,7 @@ int run_interactive_mode(sqlite3 *db) {
                 break;
             }
 
-            if (insert_dialog(db, username, key) == -1) {
+            if (insert_dialog(st, username, key) == -1) {
                 fprintf(stderr, "error while inserting dialog\n");
                 status = -1;
                 goto __exit;
@@ -185,13 +193,13 @@ int run_interactive_mode(sqlite3 *db) {
         }
 
         if (strcmp(command_buffer, "s") == 0) {
-            if (st->count == 0) {
-                fprintf(stdout, "no available dialogs");
-            } else {
-                for(int i = 0; i < st->count; i++) {
-                    fprintf(stdout, "[%d] %s\n", i, st->data[i].username);
-                }
-            }
+            // if (st->count == 0) {
+            //     fprintf(stdout, "no available dialogs");
+            // } else {
+            //     for(int i = 0; i < st->count; i++) {
+            //         fprintf(stdout, "[%d] %s\n", i, st->data[i].username);
+            //     }
+            // }
         }
     }
 
