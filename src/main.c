@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
 void print_help(void) {
     fprintf(
         stdout,
-        "version 0.0.3\n\n"
+        "version 0.0.4\n\n"
         "\033[1;31mNO WARRANTIES UNTIL VERSION 0.1.0\033[0m\n\n"
         "usage: erebus -t <template> -m <message> -o <offset> -d|e\n"
         "example: erebus -t template.txt -m msg.txt -o 1 -d\n\n"

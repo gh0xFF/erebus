@@ -16,15 +16,14 @@
 
 #define CLEAR_STDOUT "\\e[3J"
 
-int run_app(char *template, const char *msg, const uint16_t offset, const uint8_t option, const uint8_t mode);
 int extract_key_from_templatefile(const char* template, char* key);
 int read_message_from_file(const char *msg, char *msg_data);
 int writeout_message(const char *fname, const char *msg);
 void garbage_generator(char *msg, const uint16_t len);
 void add_garbage_to_msg(char *msg);
 char* transform_filename(const char* input);
-int run_interactive_mode(sqlite3 *db);
-int run_cli_mode(sqlite3 *db, const char* template, const char* msg, const uint16_t offset, const uint8_t option);
+int run_interactive_mode(storage *st);
+int run_cli_mode(storage *st, const char* template, const char* msg, const uint16_t offset, const uint8_t option);
 
 int run_app(
     char* template,  
@@ -33,61 +32,77 @@ int run_app(
     const uint8_t option,
     const uint8_t mode
 ) {
-    sqlite3 *db = NULL;
-    if (init_storage(&db) != 0) {
+    int status = 0;
+    storage *st = NULL;
+
+    st = (storage*)calloc(1, sizeof(storage));
+    if (init_storage(st) != 0) {
         fprintf(stderr, "can't open storage\n");
-        return -1;
+        status = -1;
+        goto __exit;
     }
 
-    if (ping_storage(db) != 0) {
+    if (ping_storage(st) != 0) {
         fprintf(stderr, "error while ping storage\n");
-        return -1;
+        status = -1;
+        goto __exit;
     }
-    
-    int status = 0;
+
     switch (mode) {
         case CLI_MODE:
-            status = run_cli_mode(db, template, msg, offset, option);
+            status = run_cli_mode(st, template, msg, offset, option);
             break;
         case INTERACTIVE_MODE:
-            status = run_interactive_mode(db);
+            status = run_interactive_mode(st);
             break;
         default:
             fprintf(stderr, "unsupported mode\n");
             status = -1;
     }
 
+    if (close_storage(st) == -1) {
+        status = -1;
+    }
+
+__exit:
+    if (st) free(st);
+
     return status;
 }
+
 int run_cli_mode(
-    sqlite3 *db __attribute__((unused)),
+    storage *st __attribute__((unused)),
     const char* template,  
     const char* msg,  
     const uint16_t offset,  
     const uint8_t option
 ) {
-    char *key = (char*)calloc(MAX_KEY_LENGTH, 1);
-    if(key == NULL) {
-        return -1;
+    int status = 0;
+    char *message_buffer = NULL;
+    char *key = NULL;
+
+    key = (char*)calloc(MAX_KEY_LENGTH, 1);
+    if(!key) {
+        status = -1;
+        goto __exit;
+    }
+
+    message_buffer = (char*)calloc(MAX_FILE_SIZE, 1);
+    if(!message_buffer) {
+        status = -1;
+        goto __exit;
     }
 
     if (extract_key_from_templatefile(template, key) == -1) {
-        free(key);
         fprintf(stderr, "error while getting key from template file\n");
-        return -1;
-    }
-
-    char *message_buffer = (char*)calloc(MAX_FILE_SIZE, 1);
-    if(message_buffer == NULL) {
-        free(key);
-        return -1;
+        status = -1;
+        goto __exit;
     }
 
     if (read_message_from_file(msg, message_buffer) == -1) {
-        free(message_buffer);
-        free(key);
         fprintf(stderr, "error while getting message from file\n");
-        return -1;
+        status = -1;
+        goto __exit;
     }
 
     if (option == OPTION_DECRYPT) {
@@ -102,28 +117,46 @@ int run_cli_mode(
 
     if (writeout_message(msg, message_buffer) == -1) {
         fprintf(stderr, "error while writing message file to disk\n");
+        status = -1;
+        goto __exit;
+    }
+
+__exit:
+    if (key)            free(key);
+    if (message_buffer) free (message_buffer);
+    return status;
+}
+
+int run_interactive_mode(storage *st) {
+    if (!st) {
+        fprintf(stderr, "Error: storage is NULL\n");
         return -1;
     }
 
-    free(key);
-    free(message_buffer);
-    return 0;
-}
-
-int run_interactive_mode(sqlite3 *db) {
-    /*
-       There's an inconsistent state issue; according to the mutated fields in the database, they don't correspond to the memory access.
-        We need to synchronize them.
-        One option is to rework the database access methods ourselves.
-        The best option is to monitor mutagen calls from the upper layers and update the memory in this case.
-    */
     int status = 0;
     char *command_buffer = NULL;
+    char *message_buffer = NULL;
+    char *username = NULL;
+    char *template = NULL;
+    char *key = NULL;
+
     size_t size = 0;
     ssize_t len = 0;
-    storage *st = (storage*)calloc(1, sizeof(storage));
 
-    if (get_dialogs(db, st) != 0) {
+    message_buffer = (char*)calloc(MAX_FILE_SIZE, 1);
+    if(!message_buffer) {
+        status = -1;
+        goto __exit;
+    }
+
+    key = (char*)calloc(MAX_KEY_LENGTH, 1);
+    if (!key) {
+        status = -1;
+        goto __exit;
+    }
+
+    if (get_dialogs(st) != 0) {
+        status = -1;
         goto __exit;
     }
 
@@ -135,7 +168,7 @@ int run_interactive_mode(sqlite3 *db) {
             "press 's' to show dialogs, you have %d:\n",
             CLEAR_STDOUT, st->count
         );
-       
+
         if ((len = getline(&command_buffer, &size, stdin)) == -1) {
             status = -1;
             goto __exit;
@@ -149,9 +182,8 @@ int run_interactive_mode(sqlite3 *db) {
         }
 
         if (strcmp(command_buffer, "a") == 0) {
-            fprintf(stdout, "enter usrsname: ");
+            fprintf(stdout, "enter username: ");
 
-            char *username = NULL;
             if ((len = getline(&username, &size, stdin)) == -1) {
                 fprintf(stderr, "input error\n");
                 status = -1;
@@ -163,10 +195,9 @@ int run_interactive_mode(sqlite3 *db) {
                 break;
             }
 
-            fprintf(stdout, "enter key: ");
+            fprintf(stdout, "paste key template to terminal: ");
 
-            char *key = NULL;
-            if ((len = getline(&key, &size, stdin)) == -1) {
+            if ((len = getline(&template, &size, stdin)) == -1) {
                 fprintf(stderr, "input error\n");
                 status = -1;
                 goto __exit;
@@ -177,7 +208,14 @@ int run_interactive_mode(sqlite3 *db) {
                 break;
             }
 
-            if (insert_dialog(db, username, key) == -1) {
+            int key_len = 0;
+            if (extract_key_from_template(template, key, &key_len) == -1) {
+                fprintf(stderr, "error while getting key from template file\n");
+                status = -1;
+                goto __exit;
+            }
+
+            if (insert_dialog(st, username, key) == -1) {
                 fprintf(stderr, "error while inserting dialog\n");
                 status = -1;
                 goto __exit;
@@ -188,18 +226,96 @@ int run_interactive_mode(sqlite3 *db) {
             if (st->count == 0) {
                 fprintf(stdout, "no available dialogs");
             } else {
+                fprintf(stdout, "press number in range %d to choose dialog\n", st->count);
                 for(int i = 0; i < st->count; i++) {
                     fprintf(stdout, "[%d] %s\n", i, st->data[i].username);
+                }
+
+                if ((len = getline(&command_buffer, &size, stdin)) == -1) {
+                    status = -1;
+                    goto __exit;
+                }
+
+                int idx = atoi(command_buffer);
+
+                fprintf(
+                    stdout,
+                    "username: %s\n"
+                    "offset:   %d\n",
+                    st->data[idx].username, st->data[idx].offset
+                );
+
+                fprintf(stdout, "press 'd' to decrypt or 'e' to encrypt\n");
+
+                if ((len = getline(&command_buffer, &size, stdin)) == -1) {
+                    status = -1;
+                    goto __exit;
+                }
+
+                command_buffer[strcspn(command_buffer, "\n")] = '\0';
+
+                if (strncmp(command_buffer, "d", 1) == 0) {
+                    fprintf(stdout, "insert here your message:\n");
+                    ssize_t bytes_read = read(STDERR_FILENO, message_buffer, MAX_FILE_SIZE);
+                    if (bytes_read < 1 || bytes_read > MAX_FILE_SIZE) {
+                        status = -1;
+                        goto __exit;
+                    }
+
+                    chacha20_generator(message_buffer, st->data[idx].key, st->data[idx].offset);
+                    if (update_dialog(st, st->data[idx].offset+1, st->data[idx].username) == -1) {
+                        fprintf(
+                            stdout, 
+                            "error while updating offset for %s, error: %s\n",
+                            st->data[idx].username, get_sql_error()
+                        );
+
+                        status = -1;
+                        goto __exit;
+                    }
+
+                    fprintf(stdout, "your message: [%s]\n", message_buffer);
+
+                } else if (strncmp(command_buffer, "e", 1) == 0) {
+                    fprintf(stdout, "write here message to encrypt:\n");
+
+                    ssize_t bytes_read = read(STDERR_FILENO, message_buffer, MAX_FILE_SIZE);
+                    if (bytes_read < 1 || bytes_read > MAX_FILE_SIZE) {
+                        status = -1;
+                        goto __exit;
+                    }
+                    
+                    chacha20_generator(message_buffer, st->data[idx].key, st->data[idx].offset);
+                    if (update_dialog(st, st->data[idx].offset+1, st->data[idx].username) == -1) {
+                        fprintf(
+                            stdout, 
+                            "error while updating offset for %s, error: %s\n",
+                            st->data[idx].username, get_sql_error()
+                        );
+
+                        status = -1;
+                        goto __exit;
+                    }
+
+                    garbage_generator(message_buffer, (uint16_t)strlen(message_buffer));
+                    fprintf(stdout, "your message: [%s]\n", message_buffer);
+
+                } else {
+                    fprintf(stdout, "unsupported option [%s]\n", command_buffer);
+                    break;
                 }
             }
         }
     }
 
 __exit:
-    free(command_buffer);
+    if (message_buffer)  free(message_buffer);
+    if (command_buffer)  free(command_buffer);
+    if (template)        free(template);
+    if (key)             free(key);
+
     return status;
 }
-
 
 char* transform_filename(const char* input) {
     const char* last_slash = strrchr(input, '/');
