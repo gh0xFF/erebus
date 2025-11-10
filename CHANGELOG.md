@@ -1,6 +1,20 @@
 
 # Change Log
 
+## [0.0.4] - 2025-11-10
+ 
+### Added
+### Changed
+  improved key storage api
+  improved interactive mode
+### Fixed
+
+### TODO
+  #### test actions in interactive mode
+  #### implement sqlite client
+  #### increase test coverage
+  #### add encryption for storage
+
 ## [0.0.3] - 2025-11-05
  
 ### Added
