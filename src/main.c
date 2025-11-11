@@ -6,29 +6,45 @@
 #include "instance.h"
 #include "security.h"
 
+#ifdef NDEBUG 
+
+#include "debug.h"
+
+#endif
+
 void print_help(void);
-void print_demo(void);
 
 int main(int argc, char *argv[]) {
+
+    #ifdef NDEBUG
+    setup_signal_handlers();
+    #endif
+
     int status = lock_process_memory();
     if (status == -1) {
         #ifdef PARANOIC
-            return 1;
+            status = 1;
+            goto __exit;
         #endif
 
         // ok lets continue
     }
 
+    char *template = NULL;
+    char *msg = NULL;
+
     // 256 - usual len for filename on modern fs
     // may be a problem if we are using full filepath from root to file
-    char *template = (char*)calloc(256, sizeof(char));
-    if (template == NULL) {
-        return 1;
+    template = (char*)calloc(256, sizeof(char));
+    if (!template) {
+        status = 1;
+        goto __exit;
     }
 
-    char *msg = (char*)calloc(256, sizeof(char));
-    if (msg == NULL) {
-        return 1;
+    msg = (char*)calloc(256, sizeof(char));
+    if (!msg) {
+        status = 1;
+        goto __exit;
     }
     
     uint16_t offset = 0;
@@ -58,35 +74,45 @@ int main(int argc, char *argv[]) {
                 option = OPTION_ENCRYPT;
                 break;
             default:
-                print_demo();
                 print_help();
-                return 1;
+                goto __exit;
         }
     }
 
     if (mode == CLI_MODE) {
         if (template == NULL || sizeof(template) == 0 || msg == NULL || sizeof(msg) == 0) {
             print_help();
-            return 1;
+            status = 1;
+            goto __exit;
         }
 
         if (option != OPTION_DECRYPT && option != OPTION_ENCRYPT) {
             fprintf(stderr, "ivalid option value\n");
-            return 1;
+            status = 1;
+            goto __exit;
         }
 
         #ifdef PARANOIC
         if (offset >= 16) {
             fprintf(stderr, "paranoic mode in action, you are already used same key 16 times. Create new template and send it\n");
-            return 1;
+            status = 1;
+            goto __exit;
         }
         #endif
     }
     
 
     status = run_app(template, msg, offset, option, mode);
-    free(msg);
-    return 0;
+
+__exit:
+    if (template != NULL) free(template);
+    if (msg != NULL)      free(msg);
+
+    #ifdef NDEBUG
+    memory_report();
+    #endif
+
+    exit(status);
 }
 
 void print_help(void) {
@@ -103,51 +129,4 @@ void print_help(void) {
         "-d to decrypt message\n"
         "-e to encrypt message\n"
     );
-}
-
-void print_demo(void) {
-    const char * img = 
-        "                                                            \n"
-        "            ...                         ....                \n"
-        "           ..                             ..                \n"
-        "          ..                                                \n"
-        "         ...               .                                \n"
-        "         ..               ..    ...                         \n"
-        "    .    ..          ... ..  .......                       .\n"
-        "   ..    ..          ... .  .            .              .  .\n"
-        "   .                  ....         .                       .\n"
-        "  .   .             ...'..   ....                           \n"
-        "  .       .        ..',;;,...';'.                     .     \n"
-        " .         .        ....';;';'..   .                        \n"
-        ".           .        ....',,'.     ..                .      \n"
-        "             .      ........  .  .....                      \n"
-        "             ...  ...             .  .....                  \n"
-        "               ...... ..        ...  .'.                    \n"
-        "                ..'..'..   .  ..'.. .'..                    \n"
-        "      ..        ..'...........',.   .....   ........        \n"
-        "          .....'',;'.  .......''.  .',,,'....               \n"
-        "           ...',',;,'......   .. ...,''.'''..               \n"
-        ".    .'','...............      ................. ....      .\n"
-        ".    .',;'.................,'........................      .\n"
-        ".       ........... ......'::'........''.                 ..\n"
-        ".   .       ...''.. ..   .;ll,.  ... .','...             ...\n"
-        ".   . ......','..         ;Ox.    ..  .'......           ...\n"
-        "    .....'.''.      .     'ol.    ..   ..   .            ...\n"
-        "   ...''.. ..       .     .;;..  ...               ..     ..\n"
-        "  ......            ..    .''.. ....     .         ....     \n"
-        "  .'.                ..   ....  ..       .            .    .\n"
-        "                      .'. ..... ..     ..                  .\n"
-        "          ....        .....''.  ..  ...                     \n"
-        "      .   .......   .....  ..   ....        ..              \n"
-        "       ....           ...                                ...\n"
-        "        ....                                              ..\n"
-        ".         .......                                         ..\n"
-        "            .                                              .\n"
-        " . .                                                       .\n"
-        "   ..                                                      .\n"
-        "   ...                                          ..         .\n"
-        "    ..        .                               ....          \n";
-                                                            
-
-    fprintf(stdout, "%s", img);
 }
