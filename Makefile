@@ -29,7 +29,7 @@ WARNING_FLAGS = -Wall -Wextra -Werror \
 	-fsanitize=float-divide-by-zero, unreachable 
 
 HARDENING_FLAGS = -D_FORTIFY_SOURCE=3 -fstack-protector-strong -fPIE -fPIC 
-DEBUG_FLAGS = -g3 -O0 -DDEBUG
+DEBUG_FLAGS = -g2 -O0 -DNDEBUG -rdynamic -gdwarf-5
 RELEASE_FLAGS = -O2 -g0 -flto -ffunction-sections -fdata-sections -W
 
 CFLAGS = $(STD_FLAGS) $(WARNING_FLAGS) $(HARDENING_FLAGS)
